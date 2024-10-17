@@ -8,18 +8,18 @@ from pyshorteners import Shortener
 from bs4 import BeautifulSoup as Bs
 
 
-SEARCH_PAGE = 'http://www.pap.fr/annonce/locations-appartement-paris-18e-g37785-3-pieces-jusqu-a-1500-euros'
+SEARCH_PAGE = 'https://www.apartments.com/2-to-3-bedrooms-under-2100-pet-friendly-cat/?bb=iyl_6x97qH671wo9C&mid=20250101'
 SPREADSHEET_URL = os.environ.get('SPREADSHEET_URL')
-URL_DOMAIN = 'http://www.pap.fr'
+URL_DOMAIN = 'https://www.apartments.com/'
 
-PAGINATION_SELECTOR = '.pagination li a'
-LISTING_DETAIL_BTN_SELECTOR = '.btn-details'
+PAGINATION_SELECTOR = 'nav#paging a'
+#LISTING_DETAIL_BTN_SELECTOR = '.btn-details'
 NEXT_PAGE_SELECTOR = '.next'
-GEOLOC_SELECTOR = '.item-geoloc'
-SPECS_SELECTOR = '.item-summary'
-DESCRIPTION_SELECTOR = '.item-description'
-METRO_SELECTOR = '.item-metro .label'
-PRICE_SELECTOR = '.price'
+#GEOLOC_SELECTOR = '.item-geoloc'
+SPECS_SELECTOR = '.bed-range'
+DESCRIPTION_SELECTOR = 'div.property-title span.js-placardTitle'
+#METRO_SELECTOR = '.item-metro .label'
+PRICE_SELECTOR = '.price-range'
 
 CALLR_API_LOGIN = os.environ.get('LOGIN')
 CALLR_API_PASSWORD = os.environ.get('PASSWORD')
@@ -49,6 +49,7 @@ def process_listings_page(link):
     try:
         dom = get_scraped_page(link)
 
+        # change this bc details don't have buttons
         details_urls = [URL_DOMAIN + btn.get('href') for btn in dom.select('.btn-details')]
 
         return [
@@ -70,23 +71,25 @@ def process_listing(listing):
     ])
 
     description_body = dom.select(DESCRIPTION_SELECTOR)[0]
-    location = dom.select(GEOLOC_SELECTOR)[0].h2.text
-    metro = ', '.join([clean_markup(elm.get_text()) for elm in dom.select(METRO_SELECTOR)])
+    ## the location is in the description now
+    #location = dom.select(GEOLOC_SELECTOR)[0].h2.text
+    #metro = ', '.join([clean_markup(elm.get_text()) for elm in dom.select(METRO_SELECTOR)])
     description = clean_spaces(description_body.get_text())
     price = dom.select(PRICE_SELECTOR)[0].text
 
     return {
         'specs': specs,
-        'location': location,
+        #'location': location,
         'description': description,
-        'metro': metro,
+        #'metro': metro,
         'url': listing,
         'price': price
     }
 
 def send_data_via_sms(data):
     msg = "{0} - {1} - {2} - {3} - {4}".format(
-        data['specs'], data['price'], data['location'], data['metro'],
+        data['specs'], data['price'], #data['location'], 
+        #data['metro'],
         shortener.short(data['url'])
     )
     api.call('sms.send', 'SMS', PHONE, msg, None)
@@ -109,8 +112,9 @@ try:
         for ls in process_listings_page(link):
             if ls['url'] not in urls_stored:
                 sheet.insert_rows(row=0, values=[
-                    ls['specs'], ls['location'],
-                    ls['description'], ls['metro'], ls['url']
+                    ls['specs'], #ls['location'],
+                    ls['description'], #ls['metro'], 
+                    ls['url']
                 ])
 
                 # If this is not the first time we store data (i.e. urls_stored is not empty)
